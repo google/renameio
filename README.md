@@ -1,7 +1,5 @@
 [![Build Status](https://travis-ci.org/google/go-write.svg?branch=master)](https://travis-ci.org/google/go-write)
-
 [![GoDoc](https://godoc.org/github.com/google/go-write?status.svg)](https://godoc.org/github.com/google/go-write)
-
 [![Go Report Card](https://goreportcard.com/badge/github.com/google/go-write)](https://goreportcard.com/report/github.com/google/go-write)
 
 The `write` Go package provides a way to atomically create or replace a file or
