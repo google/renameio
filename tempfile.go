@@ -64,7 +64,7 @@ func tempDir(dir, dest string) string {
 	defer os.Remove(testdest.Name())
 	testdest.Close()
 
-	if err := os.Rename(testsrc.Name(), testdest.Name()); err != nil {
+	if err := replaceFile(testsrc.Name(), testdest.Name()); err != nil {
 		return fallback
 	}
 	cleanup = false // testsrc no longer exists
@@ -119,7 +119,7 @@ func (t *PendingFile) CloseAtomicallyReplace() error {
 	if err := t.Close(); err != nil {
 		return err
 	}
-	if err := os.Rename(t.Name(), t.path); err != nil {
+	if err := replaceFile(t.Name(), t.path); err != nil {
 		return err
 	}
 	t.done = true
@@ -164,7 +164,7 @@ func Symlink(oldname, newname string) error {
 		return err
 	}
 
-	if err := os.Rename(symlink, newname); err != nil {
+	if err := replaceFile(symlink, newname); err != nil {
 		return err
 	}
 
