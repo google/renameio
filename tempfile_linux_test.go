@@ -14,7 +14,7 @@
 
 // +build linux
 
-package write
+package renameio
 
 import (
 	"io/ioutil"

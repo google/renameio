@@ -12,18 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package write_test
+package renameio_test
 
 import (
 	"fmt"
 	"log"
 
-	write "github.com/google/go-write"
+	"github.com/google/renameio"
 )
 
 func ExampleTempFile_justone() {
 	persist := func(temperature float64) error {
-		t, err := write.TempFile("", "/srv/www/metrics.txt")
+		t, err := renameio.TempFile("", "/srv/www/metrics.txt")
 		if err != nil {
 			return err
 		}
@@ -43,9 +43,9 @@ func ExampleTempFile_justone() {
 func ExampleTempFile_many() {
 	// Prepare for writing files to /srv/www, effectively caching calls to
 	// TempDir which TempFile would otherwise need to make.
-	dir := write.TempDir("/srv/www")
+	dir := renameio.TempDir("/srv/www")
 	persist := func(temperature float64) error {
-		t, err := write.TempFile(dir, "/srv/www/metrics.txt")
+		t, err := renameio.TempFile(dir, "/srv/www/metrics.txt")
 		if err != nil {
 			return err
 		}

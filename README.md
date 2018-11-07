@@ -1,8 +1,8 @@
-[![Build Status](https://travis-ci.org/google/go-write.svg?branch=master)](https://travis-ci.org/google/go-write)
-[![GoDoc](https://godoc.org/github.com/google/go-write?status.svg)](https://godoc.org/github.com/google/go-write)
-[![Go Report Card](https://goreportcard.com/badge/github.com/google/go-write)](https://goreportcard.com/report/github.com/google/go-write)
+[![Build Status](https://travis-ci.org/google/renameio.svg?branch=master)](https://travis-ci.org/google/renameio)
+[![GoDoc](https://godoc.org/github.com/google/renameio?status.svg)](https://godoc.org/github.com/google/renameio)
+[![Go Report Card](https://goreportcard.com/badge/github.com/google/renameio)](https://goreportcard.com/report/github.com/google/renameio)
 
-The `write` Go package provides a way to atomically create or replace a file or
+The `renameio` Go package provides a way to atomically create or replace a file or
 symbolic link.
 
 ## Advantages of this package

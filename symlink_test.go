@@ -14,7 +14,7 @@
 
 // +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris windows
 
-package write
+package renameio
 
 import (
 	"bytes"

@@ -1,1 +1,1 @@
-module github.com/google/go-write
+module github.com/google/renameio
