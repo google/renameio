@@ -133,6 +133,9 @@ func (t *PendingFile) CloseAtomicallyReplace() error {
 // going to write a large number of files to the same file system, store the
 // result of TempDir(filepath.Base(path)) and pass it instead of the empty
 // string.
+//
+// The file's permissions will be 0600 by default. You can change these by
+// explictly calling Chmod on the returned PendingFile.
 func TempFile(dir, path string) (*PendingFile, error) {
 	f, err := ioutil.TempFile(tempDir(dir, path), "."+filepath.Base(path))
 	if err != nil {
