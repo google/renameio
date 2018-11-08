@@ -28,7 +28,7 @@ import (
 // changes (e.g. on Linux, once the TMPDIR environment variable changes) or the
 // file system is unmounted.
 func TempDir(dest string) string {
-	return tempDir("", dest)
+	return tempDir("", filepath.Join(dest, "renameio-TempDir"))
 }
 
 func tempDir(dir, dest string) string {
