@@ -99,7 +99,7 @@ func (t *PendingFile) Cleanup() error {
 	return closeErr
 }
 
-// CloseAtomicallyReplace closes the temporary file and atomatically replaces
+// CloseAtomicallyReplace closes the temporary file and atomically replaces
 // the destination file with it, i.e., a concurrent open(2) call will either
 // open the file previously located at the destination path (if any), or the
 // just written file, but the file will always be present.
@@ -135,7 +135,7 @@ func (t *PendingFile) CloseAtomicallyReplace() error {
 // string.
 //
 // The file's permissions will be 0600 by default. You can change these by
-// explictly calling Chmod on the returned PendingFile.
+// explicitly calling Chmod on the returned PendingFile.
 func TempFile(dir, path string) (*PendingFile, error) {
 	f, err := ioutil.TempFile(tempDir(dir, path), "."+filepath.Base(path))
 	if err != nil {
