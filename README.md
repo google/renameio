@@ -5,6 +5,17 @@
 The `renameio` Go package provides a way to atomically create or replace a file or
 symbolic link.
 
+## Atomicity vs durability
+
+`renameio` concerns itself *only* with atomicity, i.e. making sure applications
+never see unexpected file content (a half-written file, or a 0-byte file).
+
+As a practical example, consider https://manpages.debian.org/: if there is a
+power outage while the site is updating, we are okay with losing the manpages
+which were being rendered at the time of the power outage. They will be added in
+a later run of the software. We are not okay with having a manpage replaced by a
+0-byte file under any circumstances, though.
+
 ## Advantages of this package
 
 There are other packages for atomically replacing files, and sometimes ad-hoc
