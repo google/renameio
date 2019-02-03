@@ -43,32 +43,16 @@ func tempDir(dir, dest string) string {
 
 	// The user might have overridden the os.TempDir() return value by setting
 	// the TMPDIR environment variable.
-	tmpdir := os.TempDir()
+	tempDir := os.TempDir()
 
-	testsrc, err := ioutil.TempFile(tmpdir, "."+filepath.Base(dest))
-	if err != nil {
-		return fallback
+	// If both the fallback and tempDir are on the same device then we can use
+	// tempDir. Otherwise, we have to use fallback.
+	fallbackDev, fallbackDevOK := getDev(fallback)
+	tempDirDev, tempDirDevOK := getDev(tempDir)
+	if fallbackDevOK && tempDirDevOK && fallbackDev == tempDirDev {
+		return tempDir
 	}
-	cleanup := true
-	defer func() {
-		if cleanup {
-			os.Remove(testsrc.Name())
-		}
-	}()
-	testsrc.Close()
-
-	testdest, err := ioutil.TempFile(filepath.Dir(dest), "."+filepath.Base(dest))
-	if err != nil {
-		return fallback
-	}
-	defer os.Remove(testdest.Name())
-	testdest.Close()
-
-	if err := os.Rename(testsrc.Name(), testdest.Name()); err != nil {
-		return fallback
-	}
-	cleanup = false // testsrc no longer exists
-	return tmpdir
+	return fallback
 }
 
 // PendingFile is a pending temporary file, waiting to replace the destination
