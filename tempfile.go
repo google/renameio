@@ -160,7 +160,12 @@ func Symlink(oldname, newname string) error {
 	if err != nil {
 		return err
 	}
-	defer os.RemoveAll(d)
+	cleanup := true
+	defer func() {
+		if cleanup {
+			os.RemoveAll(d)
+		}
+	}()
 
 	symlink := filepath.Join(d, "tmp.symlink")
 	if err := os.Symlink(oldname, symlink); err != nil {
@@ -171,5 +176,6 @@ func Symlink(oldname, newname string) error {
 		return err
 	}
 
+	cleanup = false
 	return os.RemoveAll(d)
 }
