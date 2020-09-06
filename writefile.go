@@ -26,7 +26,7 @@ func WriteFile(filename string, data []byte, perm os.FileMode) error {
 	defer t.Cleanup()
 
 	// Set permissions before writing data, in case the data is sensitive.
-	if err := t.Chmod(perm); err != nil {
+	if err := os.Chmod(t.Name(), perm); err != nil {
 		return err
 	}
 
