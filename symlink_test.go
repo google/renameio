@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris windows
+// +build !windows
 
 package renameio
 
