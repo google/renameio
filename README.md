@@ -43,6 +43,16 @@ correct sequence of operations hard to identify:
 This package attempts to get all of these details right, provides an intuitive,
 yet flexible API and caters to use-cases where high performance is required.
 
+## Windows support
+
+It is [not possible to reliably write files atomically on
+Windows](https://github.com/golang/go/issues/22397#issuecomment-498856679), and
+[`chmod` is not reliably supported by the Go standard library on
+Windows](https://github.com/google/renameio/issues/17).
+
+As it is not possible to provide a correct implementation, this package does not
+export any functions on Windows.
+
 ## Disclaimer
 
 This is not an official Google product (experimental or otherwise), it
