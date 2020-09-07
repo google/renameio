@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/google/renameio.svg?branch=master)](https://travis-ci.org/google/renameio)
+[![Build Status](https://github.com/google/renameio/workflows/Test/badge.svg)](https://github.com/google/renameio/actions?query=workflow%3ATest)
 [![GoDoc](https://godoc.org/github.com/google/renameio?status.svg)](https://godoc.org/github.com/google/renameio)
 [![Go Report Card](https://goreportcard.com/badge/github.com/google/renameio)](https://goreportcard.com/report/github.com/google/renameio)
 
