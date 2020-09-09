@@ -32,7 +32,11 @@ jobs:
           ${{ runner.os }}-go-
     - name: Checkout
       uses: actions/checkout@v2
-    - name: Build
-      run: go build ./...
-    - name: Test
-      run: go test ./...
+    - name: Linux test
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        go test -c -race .
+        sudo ./renameio.test -test.v
+    - name: Non-Linux test
+      if: matrix.os != 'ubuntu-latest'
+      run: go test .
