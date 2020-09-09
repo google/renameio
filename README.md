@@ -1,5 +1,5 @@
 [![Build Status](https://github.com/google/renameio/workflows/Test/badge.svg)](https://github.com/google/renameio/actions?query=workflow%3ATest)
-[![GoDoc](https://godoc.org/github.com/google/renameio?status.svg)](https://godoc.org/github.com/google/renameio)
+[![PkgGoDev](https://pkg.go.dev/badge/github.com/google/renameio)](https://pkg.go.dev/github.com/google/renameio)
 [![Go Report Card](https://goreportcard.com/badge/github.com/google/renameio)](https://goreportcard.com/report/github.com/google/renameio)
 
 The `renameio` Go package provides a way to atomically create or replace a file or
