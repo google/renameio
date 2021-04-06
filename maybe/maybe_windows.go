@@ -1,11 +1,8 @@
-// +build !windows
-
 package maybe
 
 import (
+	"io/ioutil"
 	"os"
-
-	"github.com/google/renameio"
 )
 
 // WriteFile mirrors ioutil.WriteFile. On Linux it uses renameio.WriteFile to
@@ -21,5 +18,5 @@ import (
 // as a convenience wrapper if you are okay with atomic replacement not being
 // supported by the runtime platform.
 func WriteFile(filename string, data []byte, perm os.FileMode) error {
-	return renameio.WriteFile(filename, data, perm)
+	return ioutil.WriteFile(filename, data, perm)
 }
