@@ -18,9 +18,41 @@ package renameio
 
 import (
 	"io/ioutil"
+	"math/rand"
 	"os"
 	"path/filepath"
+	"strconv"
 )
+
+// nextrandom is a function generating a random number.
+var nextrandom = rand.Int63
+
+// openTempFile creates a randomly named file and returns an open handle. It is
+// similar to ioutil.TempFile except that the directory must be given, the file
+// permissions can be controlled and patterns in the name are not supported.
+// The name is always suffixed with a random number.
+func openTempFile(dir, name string, perm os.FileMode) (*os.File, error) {
+	prefix := filepath.Join(dir, name)
+
+	for attempt := 0; ; {
+		// Generate a reasonably random name which is unlikely to already
+		// exist. O_EXCL ensures that existing files generate an error.
+		name := prefix + strconv.FormatInt(nextrandom(), 10)
+
+		f, err := os.OpenFile(name, os.O_RDWR|os.O_CREATE|os.O_EXCL, perm)
+		if !os.IsExist(err) {
+			return f, err
+		}
+
+		if attempt++; attempt > 10000 {
+			return nil, &os.PathError{
+				Op:   "tempfile",
+				Path: name,
+				Err:  os.ErrExist,
+			}
+		}
+	}
+}
 
 // TempDir checks whether os.TempDir() can be used as a temporary directory for
 // later atomically replacing files within dest. If no (os.TempDir() resides on
@@ -133,7 +165,7 @@ func (t *PendingFile) CloseAtomicallyReplace() error {
 	return nil
 }
 
-// TempFile wraps ioutil.TempFile for the use case of atomically creating or
+// TempFile creates a temporary file destined to atomically creating or
 // replacing the destination file at path.
 //
 // If dir is the empty string, TempDir(filepath.Base(path)) is used. If you are
@@ -141,12 +173,23 @@ func (t *PendingFile) CloseAtomicallyReplace() error {
 // result of TempDir(filepath.Base(path)) and pass it instead of the empty
 // string.
 //
-// The file's permissions will be 0600 by default. You can change these by
-// explicitly calling Chmod on the returned PendingFile.
+// The file's permissions will be 0600. You can change these by explicitly
+// calling Chmod on the returned PendingFile.
 func TempFile(dir, path string) (*PendingFile, error) {
-	f, err := ioutil.TempFile(tempDir(dir, path), "."+filepath.Base(path))
+	const perm os.FileMode = 0o600
+
+	f, err := openTempFile(tempDir(dir, path), "."+filepath.Base(path), perm)
 	if err != nil {
 		return nil, err
+	}
+
+	if fi, err := f.Stat(); err != nil {
+		return nil, err
+	} else if fi.Mode()&os.ModePerm != perm {
+		// Enforce documented default permissions
+		if err := f.Chmod(perm); err != nil {
+			return nil, err
+		}
 	}
 
 	return &PendingFile{File: f, path: path}, nil

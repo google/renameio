@@ -18,13 +18,108 @@ package renameio
 
 import (
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"syscall"
 	"testing"
 )
 
+func withUmask(t *testing.T, mask os.FileMode) {
+	t.Helper()
+
+	old := syscall.Umask(int(mask))
+
+	t.Cleanup(func() {
+		syscall.Umask(old)
+	})
+}
+
+func withCustomRng(t *testing.T, fn func() int64) {
+	t.Helper()
+
+	orig := nextrandom
+
+	t.Cleanup(func() {
+		nextrandom = orig
+	})
+
+	nextrandom = fn
+}
+
+func TestOpenTempFile(t *testing.T) {
+	const count = 100
+
+	// Install a deterministic random generator
+	var next int64 = 12345
+	withCustomRng(t, func() int64 {
+		v := next
+		next++
+		return v
+	})
+
+	for _, umask := range []os.FileMode{0o000, 0o011, 0o007, 0o027, 0o077} {
+		t.Run(fmt.Sprintf("0%o", umask), func(t *testing.T) {
+			withUmask(t, umask)
+
+			dir := t.TempDir()
+
+			for i := 0; i < count; i++ {
+				perm := [...]os.FileMode{0600, 0755, 0411}[i%3]
+				maskedPerm := perm & ^umask
+
+				got, err := openTempFile(dir, "test", perm)
+				if err != nil {
+					t.Errorf("openTempFile() failed: %v", err)
+				}
+
+				t.Cleanup(func() {
+					if err := got.Close(); err != nil {
+						t.Errorf("Close() failed: %v", err)
+					}
+				})
+
+				if fi, err := os.Stat(got.Name()); err != nil {
+					t.Errorf("Stat(%q) failed: %v", got.Name(), err)
+				} else if gotPerm := fi.Mode() & os.ModePerm; gotPerm != maskedPerm {
+					t.Errorf("Got permissions 0%o, want 0%o", gotPerm, maskedPerm)
+				}
+			}
+
+			if entries, err := ioutil.ReadDir(dir); err != nil {
+				t.Errorf("ReadDir(%q) failed: %v", dir, err)
+			} else if len(entries) < count {
+				t.Errorf("Directory %q contains fewer than %d entries", dir, count)
+			}
+		})
+	}
+}
+
+func TestOpenTempFileConflict(t *testing.T) {
+	withUmask(t, 0077)
+
+	// https://xkcd.com/221/
+	withCustomRng(t, func() int64 {
+		return 4
+	})
+
+	dir := t.TempDir()
+
+	if first, err := openTempFile(dir, "test", 0644); err != nil {
+		t.Errorf("openTempFile() failed: %v", err)
+	} else {
+		first.Close()
+	}
+
+	if _, err := openTempFile(dir, "test", 0644); !errors.Is(err, os.ErrExist) {
+		t.Errorf("openTempFile() did not fail with ErrExist: %v", err)
+	}
+}
+
 func TestTempFile(t *testing.T) {
+	withUmask(t, 0077)
+
 	tmpdir := t.TempDir()
 	pathNew := filepath.Join(tmpdir, "new.txt")
 	pathExisting := filepath.Join(tmpdir, "existing.txt")
