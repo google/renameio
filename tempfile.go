@@ -100,6 +100,7 @@ func (t *PendingFile) Cleanup() error {
 	if err := os.Remove(t.Name()); err != nil {
 		return err
 	}
+	t.done = true
 	return closeErr
 }
 
