@@ -117,43 +117,139 @@ func TestOpenTempFileConflict(t *testing.T) {
 	}
 }
 
-func TestTempFile(t *testing.T) {
+func TestPendingFileCreation(t *testing.T) {
 	withUmask(t, 0077)
 
-	tmpdir := t.TempDir()
-	pathNew := filepath.Join(tmpdir, "new.txt")
-	pathExisting := filepath.Join(tmpdir, "existing.txt")
+	pathExisting := filepath.Join(t.TempDir(), "existing.txt")
+	pathExistingWithPerm := filepath.Join(t.TempDir(), "perm.txt")
 
-	if err := ioutil.WriteFile(pathExisting, []byte("content"), 0644); err != nil {
-		t.Errorf("WriteFile(%q) failed: %v", pathExisting, err)
+	for path, content := range map[string]string{
+		pathExisting:         "content",
+		pathExistingWithPerm: "",
+	} {
+		if err := ioutil.WriteFile(path, []byte(content), 0644); err != nil {
+			t.Errorf("WriteFile(%q) failed: %v", path, err)
+		}
 	}
 
 	for _, tc := range []struct {
-		name string
-		path string
+		name        string
+		path        string
+		umask       os.FileMode
+		useTempFile bool
+		options     []Option
+		want        string
+		wantPerm    os.FileMode
 	}{
 		{
-			name: "new file",
-			path: pathNew,
+			name:        "tempfile new file",
+			path:        filepath.Join(t.TempDir(), "new.txt"),
+			useTempFile: true,
+			want:        "replaced:tempfile new file",
+			wantPerm:    0o600,
 		},
 		{
-			name: "existing",
-			path: pathExisting,
+			name:        "tempfile existing",
+			path:        pathExisting,
+			useTempFile: true,
+			want:        "replaced:tempfile existing",
+			wantPerm:    0o600,
+		},
+		{
+			name:        "tempfile umask",
+			path:        filepath.Join(t.TempDir(), "masked"),
+			useTempFile: true,
+			umask:       0o377,
+			want:        "replaced:tempfile umask",
+			wantPerm:    0o600,
+		},
+		{
+			name:     "defaults",
+			path:     filepath.Join(t.TempDir(), "npf defaults"),
+			want:     "replaced:defaults",
+			wantPerm: 0o600,
+		},
+		{
+			name:     "fixed perm",
+			path:     filepath.Join(t.TempDir(), "npf new perm"),
+			options:  []Option{WithStaticPermissions(0o654)},
+			want:     "replaced:fixed perm",
+			wantPerm: 0o654,
+		},
+		{
+			name:     "umask perm 0644",
+			path:     filepath.Join(t.TempDir(), "npf umask perm"),
+			options:  []Option{WithPermissions(0o777)},
+			umask:    0o012,
+			want:     "replaced:umask perm 0644",
+			wantPerm: 0o765,
+		},
+		{
+			name:     "setup with perm",
+			path:     pathExistingWithPerm,
+			options:  []Option{WithStaticPermissions(0o754)},
+			want:     "replaced:setup with perm",
+			wantPerm: 0o754,
+		},
+		{
+			name:     "overwrite existing with perm",
+			path:     pathExistingWithPerm,
+			options:  []Option{WithExistingPermissions()},
+			want:     "replaced:overwrite existing with perm",
+			wantPerm: 0o754,
+		},
+		{
+			name:     "use permissions from non-existing with unset",
+			path:     filepath.Join(t.TempDir(), "never before"),
+			options:  []Option{WithExistingPermissions()},
+			want:     "replaced:use permissions from non-existing with unset",
+			wantPerm: 0o600,
+		},
+		{
+			name:     "use permissions from non-existing with mode",
+			path:     filepath.Join(t.TempDir(), "never before"),
+			options:  []Option{WithPermissions(0o633), WithExistingPermissions()},
+			umask:    0o012,
+			want:     "replaced:use permissions from non-existing with mode",
+			wantPerm: 0o621,
+		},
+		{
+			name:     "use permissions from non-existing with fixed",
+			path:     filepath.Join(t.TempDir(), "never before"),
+			options:  []Option{WithExistingPermissions(), WithStaticPermissions(0o612)},
+			want:     "replaced:use permissions from non-existing with fixed",
+			wantPerm: 0o612,
+		},
+		{
+			name:     "custom tempdir",
+			path:     filepath.Join(t.TempDir(), "foo"),
+			options:  []Option{WithTempDir(t.TempDir()), WithStaticPermissions(0o612)},
+			umask:    0o012,
+			want:     "replaced:custom tempdir",
+			wantPerm: 0o612,
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			pf, err := TempFile("", tc.path)
-			if err != nil {
-				t.Errorf("TempFile(%q) failed: %v", tc.path, err)
+			if tc.umask != 0 {
+				withUmask(t, tc.umask)
 			}
 
-			t.Cleanup(func() {
-				if err := pf.Cleanup(); err != nil {
-					t.Errorf("Cleanup() failed: %v", err)
-				}
-			})
+			var err error
+			var pf *PendingFile
 
-			if _, err := pf.WriteString("new content " + tc.name); err != nil {
+			if tc.useTempFile {
+				pf, err = TempFile("", tc.path)
+				if err != nil {
+					t.Errorf("TempFile(%q) failed: %v", tc.path, err)
+				}
+			} else {
+				pf, err = NewPendingFile(tc.path, tc.options...)
+				if err != nil {
+					t.Errorf("NewPendingFile(%q, %+v) failed: %v", tc.path, tc.options, err)
+				}
+			}
+
+			if _, err := pf.WriteString("replaced:" + tc.name); err != nil {
 				t.Errorf("Write() failed: %v", err)
 			}
 
@@ -164,36 +260,23 @@ func TestTempFile(t *testing.T) {
 			if _, err := pf.Write(nil); !errors.Is(err, os.ErrClosed) {
 				t.Errorf("Write() after CloseAtomicallyReplace didn't fail with ErrClosed: %v", err)
 			}
+
+			if err := pf.Cleanup(); err != nil {
+				t.Errorf("Cleanup() failed: %v", err)
+			}
+
+			if got, err := ioutil.ReadFile(tc.path); err != nil {
+				t.Errorf("ReadFile(%q) failed: %v", tc.path, err)
+			} else if string(got) != tc.want {
+				t.Errorf("Read unexpected content %q from %q, want %q", string(got), tc.path, tc.want)
+			}
+
+			if fi, err := os.Stat(tc.path); err != nil {
+				t.Errorf("Stat(%q) failed: %v", tc.path, err)
+			} else if got := fi.Mode() & os.ModePerm; got != tc.wantPerm {
+				t.Errorf("%q has permissions 0%o, want 0%o", tc.path, got, tc.wantPerm)
+			}
 		})
-	}
-
-	for _, tc := range []struct {
-		path     string
-		want     string
-		wantPerm os.FileMode
-	}{
-		{
-			path:     pathNew,
-			want:     "new content new file",
-			wantPerm: 0600,
-		},
-		{
-			path:     pathExisting,
-			want:     "new content existing",
-			wantPerm: 0600,
-		},
-	} {
-		if got, err := ioutil.ReadFile(tc.path); err != nil {
-			t.Errorf("ReadFile(%q) failed: %v", tc.path, err)
-		} else if string(got) != tc.want {
-			t.Errorf("Read unexpected content %q from %q, want %q", string(got), tc.path, tc.want)
-		}
-
-		if fi, err := os.Stat(tc.path); err != nil {
-			t.Errorf("Stat(%q) failed: %v", tc.path, err)
-		} else if got := fi.Mode() & os.ModePerm; got != tc.wantPerm {
-			t.Errorf("%q has permissions 0%o, want 0%o", tc.path, got, tc.wantPerm)
-		}
 	}
 }
 

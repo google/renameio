@@ -24,6 +24,9 @@ import (
 	"strconv"
 )
 
+// Default permissions for created files
+const defaultPerm os.FileMode = 0o600
+
 // nextrandom is a function generating a random number.
 var nextrandom = rand.Int63
 
@@ -176,23 +179,61 @@ func (t *PendingFile) CloseAtomicallyReplace() error {
 // The file's permissions will be 0600. You can change these by explicitly
 // calling Chmod on the returned PendingFile.
 func TempFile(dir, path string) (*PendingFile, error) {
-	const perm os.FileMode = 0o600
+	return NewPendingFile(path, WithTempDir(dir), WithStaticPermissions(defaultPerm))
+}
 
-	f, err := openTempFile(tempDir(dir, path), "."+filepath.Base(path), perm)
-	if err != nil {
-		return nil, err
+type config struct {
+	dir, path       string
+	createPerm      os.FileMode
+	attemptPermCopy bool
+	chmod           *os.FileMode
+}
+
+// NewPendingFile creates a temporary file destined to atomically creating or
+// replacing the destination file at path.
+//
+// TempDir(filepath.Base(path)) is used to store the temporary file. If you are
+// going to write a large number of files to the same file system, use the
+// result of TempDir(filepath.Base(path)) with the WithTempDir option.
+//
+// The file's permissions will be (0600 & ^umask). Use WithPermissions,
+// WithStaticPermissions and WithExistingPermissions to control them.
+func NewPendingFile(path string, opts ...Option) (*PendingFile, error) {
+	cfg := config{
+		path:       path,
+		createPerm: defaultPerm,
 	}
 
-	if fi, err := f.Stat(); err != nil {
-		return nil, err
-	} else if fi.Mode()&os.ModePerm != perm {
-		// Enforce documented default permissions
-		if err := f.Chmod(perm); err != nil {
+	for _, o := range opts {
+		o.apply(&cfg)
+	}
+
+	if cfg.attemptPermCopy {
+		// Try to determine permissions from an existing file.
+		if existing, err := os.Lstat(cfg.path); err == nil && existing.Mode().IsRegular() {
+			perm := existing.Mode() & os.ModePerm
+			cfg.chmod = &perm
+		} else if err != nil && !os.IsNotExist(err) {
 			return nil, err
 		}
 	}
 
-	return &PendingFile{File: f, path: path}, nil
+	f, err := openTempFile(tempDir(cfg.dir, cfg.path), "."+filepath.Base(cfg.path), cfg.createPerm)
+	if err != nil {
+		return nil, err
+	}
+
+	if cfg.chmod != nil {
+		if fi, err := f.Stat(); err != nil {
+			return nil, err
+		} else if fi.Mode()&os.ModePerm != *cfg.chmod {
+			if err := f.Chmod(*cfg.chmod); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	return &PendingFile{File: f, path: cfg.path}, nil
 }
 
 // Symlink wraps os.Symlink, replacing an existing symlink with the same name
