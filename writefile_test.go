@@ -18,6 +18,7 @@ package renameio
 
 import (
 	"bytes"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -25,27 +26,36 @@ import (
 )
 
 func TestWriteFile(t *testing.T) {
-	filename := filepath.Join(t.TempDir(), "hello.sh")
+	for _, perm := range []os.FileMode{0o755, 0o644, 0o400, 0o765} {
+		t.Run(fmt.Sprintf("perm%04o", perm), func(t *testing.T) {
+			for _, umask := range []os.FileMode{0o000, 0o011, 0o007, 0o027, 0o077} {
+				t.Run(fmt.Sprintf("umask%04o", umask), func(t *testing.T) {
+					withUmask(t, umask)
 
-	wantData := []byte("#!/bin/sh\necho \"Hello World\"\n")
-	wantPerm := os.FileMode(0755)
-	if err := WriteFile(filename, wantData, wantPerm); err != nil {
-		t.Fatal(err)
-	}
+					filename := filepath.Join(t.TempDir(), "hello.sh")
 
-	gotData, err := ioutil.ReadFile(filename)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !bytes.Equal(gotData, wantData) {
-		t.Errorf("got data %v, want data %v", gotData, wantData)
-	}
+					wantData := []byte("#!/bin/sh\necho \"Hello World\"\n")
+					if err := WriteFile(filename, wantData, perm); err != nil {
+						t.Fatal(err)
+					}
 
-	fi, err := os.Stat(filename)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if gotPerm := fi.Mode() & os.ModePerm; gotPerm != wantPerm {
-		t.Errorf("got permissions 0%o, want permissions 0%o", gotPerm, wantPerm)
+					gotData, err := ioutil.ReadFile(filename)
+					if err != nil {
+						t.Fatal(err)
+					}
+					if !bytes.Equal(gotData, wantData) {
+						t.Errorf("got data %v, want data %v", gotData, wantData)
+					}
+
+					fi, err := os.Stat(filename)
+					if err != nil {
+						t.Fatal(err)
+					}
+					if gotPerm := fi.Mode() & os.ModePerm; gotPerm != perm {
+						t.Errorf("got permissions %04o, want %04o", gotPerm, perm)
+					}
+				})
+			}
+		})
 	}
 }
