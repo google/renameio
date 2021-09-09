@@ -32,6 +32,8 @@ func TestWriteFile(t *testing.T) {
 				t.Run(fmt.Sprintf("umask%04o", umask), func(t *testing.T) {
 					withUmask(t, umask)
 
+					maskedPerm := perm & ^umask
+
 					filename := filepath.Join(t.TempDir(), "hello.sh")
 
 					wantData := []byte("#!/bin/sh\necho \"Hello World\"\n")
@@ -51,11 +53,31 @@ func TestWriteFile(t *testing.T) {
 					if err != nil {
 						t.Fatal(err)
 					}
-					if gotPerm := fi.Mode() & os.ModePerm; gotPerm != perm {
-						t.Errorf("got permissions %04o, want %04o", gotPerm, perm)
+					if gotPerm := fi.Mode() & os.ModePerm; gotPerm != maskedPerm {
+						t.Errorf("got permissions %04o, want %04o", gotPerm, maskedPerm)
 					}
 				})
 			}
 		})
+	}
+}
+
+func TestWriteFileIgnoreUmask(t *testing.T) {
+	withUmask(t, 0o077)
+
+	filename := filepath.Join(t.TempDir(), "file")
+
+	const wantPerm os.FileMode = 0o765
+
+	if err := WriteFile(filename, nil, wantPerm, IgnoreUmask()); err != nil {
+		t.Fatal(err)
+	}
+
+	fi, err := os.Stat(filename)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if gotPerm := fi.Mode() & os.ModePerm; gotPerm != wantPerm {
+		t.Errorf("got permissions %04o, want %04o", gotPerm, wantPerm)
 	}
 }
