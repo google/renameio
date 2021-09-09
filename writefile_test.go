@@ -25,13 +25,7 @@ import (
 )
 
 func TestWriteFile(t *testing.T) {
-	d, err := ioutil.TempDir("", "tempdirtest")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(d)
-
-	filename := filepath.Join(d, "hello.sh")
+	filename := filepath.Join(t.TempDir(), "hello.sh")
 
 	wantData := []byte("#!/bin/sh\necho \"Hello World\"\n")
 	wantPerm := os.FileMode(0755)
