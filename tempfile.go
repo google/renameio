@@ -186,6 +186,7 @@ type config struct {
 	dir, path       string
 	createPerm      os.FileMode
 	attemptPermCopy bool
+	ignoreUmask     bool
 	chmod           *os.FileMode
 }
 
@@ -197,7 +198,8 @@ type config struct {
 // result of TempDir(filepath.Base(path)) with the WithTempDir option.
 //
 // The file's permissions will be (0600 & ^umask). Use WithPermissions,
-// WithStaticPermissions and WithExistingPermissions to control them.
+// IgnoreUmask, WithStaticPermissions and WithExistingPermissions to control
+// them.
 func NewPendingFile(path string, opts ...Option) (*PendingFile, error) {
 	cfg := config{
 		path:       path,
@@ -206,6 +208,10 @@ func NewPendingFile(path string, opts ...Option) (*PendingFile, error) {
 
 	for _, o := range opts {
 		o.apply(&cfg)
+	}
+
+	if cfg.ignoreUmask && cfg.chmod == nil {
+		cfg.chmod = &cfg.createPerm
 	}
 
 	if cfg.attemptPermCopy {

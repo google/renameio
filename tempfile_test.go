@@ -228,6 +228,20 @@ func TestPendingFileCreation(t *testing.T) {
 			want:     "replaced:custom tempdir",
 			wantPerm: 0o612,
 		},
+		{
+			name:     "ignore umask",
+			path:     filepath.Join(t.TempDir(), "ignore umask"),
+			options:  []Option{IgnoreUmask(), WithPermissions(0o644)},
+			want:     "replaced:ignore umask",
+			wantPerm: 0o644,
+		},
+		{
+			name:     "ignore umask with static permissions",
+			path:     filepath.Join(t.TempDir(), "ignore umask"),
+			options:  []Option{IgnoreUmask(), WithStaticPermissions(0o632), WithPermissions(0o765)},
+			want:     "replaced:ignore umask with static permissions",
+			wantPerm: 0o632,
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			if tc.umask != 0 {
