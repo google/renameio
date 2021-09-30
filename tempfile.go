@@ -213,6 +213,10 @@ func NewPendingFile(path string, opts ...Option) (*PendingFile, error) {
 		if existing, err := os.Lstat(cfg.path); err == nil && existing.Mode().IsRegular() {
 			perm := existing.Mode() & os.ModePerm
 			cfg.chmod = &perm
+
+			// Try to already create file with desired permissions; at worst
+			// a chmod will be needed afterwards.
+			cfg.createPerm = perm
 		} else if err != nil && !os.IsNotExist(err) {
 			return nil, err
 		}
