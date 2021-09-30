@@ -40,7 +40,8 @@ func WithTempDir(dir string) Option {
 }
 
 // WithPermissions sets the permissions for the target file while respecting
-// the umask(2). Bits set in the umask are removed from the permissions given.
+// the umask(2). Bits set in the umask are removed from the permissions given
+// unless IgnoreUmask is used.
 func WithPermissions(perm os.FileMode) Option {
 	perm &= os.ModePerm
 	return optionFunc(func(cfg *config) {
@@ -48,8 +49,17 @@ func WithPermissions(perm os.FileMode) Option {
 	})
 }
 
+// IgnoreUmask causes the permissions configured using WithPermissions to be
+// applied directly without applying the umask.
+func IgnoreUmask() Option {
+	return optionFunc(func(cfg *config) {
+		cfg.ignoreUmask = true
+	})
+}
+
 // WithStaticPermissions sets the permissions for the target file ignoring the
-// umask(2). This is equivalent to calling Chmod().
+// umask(2). This is equivalent to calling Chmod() on the file handle or using
+// WithPermissions in combination with IgnoreUmask.
 func WithStaticPermissions(perm os.FileMode) Option {
 	perm &= os.ModePerm
 	return optionFunc(func(cfg *config) {
