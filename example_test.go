@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//go:build !windows
 // +build !windows
 
 package renameio_test
@@ -20,7 +21,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/google/renameio"
+	"github.com/google/renameio/v2"
 )
 
 func ExampleTempFile_justone() {

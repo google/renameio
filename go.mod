@@ -1,3 +1,3 @@
-module github.com/google/renameio
+module github.com/google/renameio/v2
 
 go 1.13
