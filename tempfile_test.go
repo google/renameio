@@ -295,6 +295,55 @@ func TestPendingFileCreation(t *testing.T) {
 	}
 }
 
+func TestPendingFileClosing(t *testing.T) {
+	for _, tc := range []struct {
+		name        string
+		path        string
+		options     []Option
+		wantMissing bool
+		wantContent string
+	}{
+		{
+			name:        "default: Close() closes underlying file",
+			path:        filepath.Join(t.TempDir(), "new.txt"),
+			wantMissing: true,
+		},
+		{
+			name:        "WithReplaceOnClose",
+			path:        filepath.Join(t.TempDir(), "new.txt"),
+			options:     []Option{WithReplaceOnClose()},
+			wantMissing: false,
+			wantContent: "tempfile new file",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			pf, err := NewPendingFile(tc.path, tc.options...)
+			if err != nil {
+				t.Errorf("NewPendingFile(%q, %+v) failed: %v", tc.path, tc.options, err)
+			}
+
+			if _, err := pf.Write([]byte(tc.wantContent)); err != nil {
+				t.Errorf("Write(%q) failed: %v", tc.path, err)
+			}
+
+			pf.Close()
+
+			got, err := os.ReadFile(tc.path)
+			if tc.wantMissing {
+				if !errors.Is(err, os.ErrNotExist) {
+					t.Errorf("Expected %q to be missing, got: %v", tc.path, err)
+				}
+			} else {
+				if err != nil {
+					t.Errorf("ReadFile(%q) failed: %v", tc.path, err)
+				} else if string(got) != tc.wantContent {
+					t.Errorf("Read unexpected content %q from %q, want %q", string(got), tc.path, tc.wantContent)
+				}
+			}
+		})
+	}
+}
+
 func TestTempFileNoCommit(t *testing.T) {
 	pathNew := filepath.Join(t.TempDir(), "new.txt")
 	pathExisting := filepath.Join(t.TempDir(), "existing.txt")
