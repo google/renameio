@@ -170,8 +170,8 @@ func (t *PendingFile) CloseAtomicallyReplace() error {
 	return nil
 }
 
-// Close wraps os.File.Close, optionally calling CloseAtomicallyReplace instead if WithReplaceOnClose is used when
-// creating the PendingFile.
+// Close closes the file. By default it just calls Close() on the underlying file. For PendingFiles created with
+// WithReplaceOnClose it calls CloseAtomicallyReplace() instead.
 func (t *PendingFile) Close() error {
 	if t.replaceOnClose {
 		return t.CloseAtomicallyReplace()

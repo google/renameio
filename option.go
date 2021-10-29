@@ -78,7 +78,7 @@ func WithExistingPermissions() Option {
 	})
 }
 
-// WithReplaceOnClose causes Close() on the PendingFile to actually call
+// WithReplaceOnClose causes PendingFile.Close() to actually call
 // CloseAtomicallyReplace(). This means PendingFile implements io.Closer while
 // maintaining atomicity per default.
 func WithReplaceOnClose() Option {
