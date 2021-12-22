@@ -200,6 +200,8 @@ type config struct {
 	ignoreUmask     bool
 	chmod           *os.FileMode
 	renameOnClose   bool
+	uid             int
+	gid             int
 }
 
 // NewPendingFile creates a temporary file destined to atomically creating or
@@ -216,6 +218,8 @@ func NewPendingFile(path string, opts ...Option) (*PendingFile, error) {
 	cfg := config{
 		path:       path,
 		createPerm: defaultPerm,
+		uid:        -1,
+		gid:        -1,
 	}
 
 	for _, o := range opts {
@@ -252,6 +256,12 @@ func NewPendingFile(path string, opts ...Option) (*PendingFile, error) {
 			if err := f.Chmod(*cfg.chmod); err != nil {
 				return nil, err
 			}
+		}
+	}
+
+	if cfg.uid != -1 || cfg.gid != -1 {
+		if err := f.Chown(cfg.uid, cfg.gid); err != nil {
+			return nil, err
 		}
 	}
 

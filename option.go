@@ -86,3 +86,19 @@ func WithReplaceOnClose() Option {
 		c.renameOnClose = true
 	})
 }
+
+// WithUserID configures the file creation to try to change ownership to the
+// specified user ID. This is equivalent to calling Chown() on the file handle.
+func WithUserID(uid int) Option {
+	return optionFunc(func(c *config) {
+		c.uid = uid
+	})
+}
+
+// WithGroupID configures the file creation to try to change ownership to the
+// specified group ID. This is equivalent to calling Chown() on the file handle.
+func WithGroupID(gid int) Option {
+	return optionFunc(func(c *config) {
+		c.gid = gid
+	})
+}
