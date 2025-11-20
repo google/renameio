@@ -86,3 +86,12 @@ func WithReplaceOnClose() Option {
 		c.renameOnClose = true
 	})
 }
+
+// WithSyncDirectory configures renameio to fsync the directory after renaming
+// the file. If that succeeds it's guaranteed the file will be in the new state
+// even after a crash.
+func WithSyncDirectory() Option {
+	return optionFunc(func(c *config) {
+		c.syncDirectory = true
+	})
+}

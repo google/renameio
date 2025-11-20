@@ -118,6 +118,7 @@ type PendingFile struct {
 	done           bool
 	closed         bool
 	replaceOnClose bool
+	syncDirectory  bool
 }
 
 // Cleanup is a no-op if CloseAtomicallyReplace succeeded, and otherwise closes
@@ -167,6 +168,16 @@ func (t *PendingFile) CloseAtomicallyReplace() error {
 		return err
 	}
 	t.done = true
+	if t.syncDirectory {
+		dh, err := os.OpenFile(filepath.Dir(t.path), os.O_WRONLY, 0)
+		if err != nil {
+			return err
+		}
+		defer dh.Close()
+		if err := dh.Sync(); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -200,6 +211,7 @@ type config struct {
 	ignoreUmask     bool
 	chmod           *os.FileMode
 	renameOnClose   bool
+	syncDirectory   bool
 }
 
 // NewPendingFile creates a temporary file destined to atomically creating or
@@ -255,7 +267,12 @@ func NewPendingFile(path string, opts ...Option) (*PendingFile, error) {
 		}
 	}
 
-	return &PendingFile{File: f, path: cfg.path, replaceOnClose: cfg.renameOnClose}, nil
+	return &PendingFile{
+		File:           f,
+		path:           cfg.path,
+		replaceOnClose: cfg.renameOnClose,
+		syncDirectory:  cfg.syncDirectory,
+	}, nil
 }
 
 // Symlink wraps os.Symlink, replacing an existing symlink with the same name
