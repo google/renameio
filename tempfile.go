@@ -23,7 +23,7 @@ import (
 	"strconv"
 )
 
-// Default permissions for created files
+// Default permissions for created files.
 const defaultPerm os.FileMode = 0o600
 
 // nextrandom is a function generating a random number.

@@ -69,7 +69,7 @@ func WithStaticPermissions(perm os.FileMode) Option {
 
 // WithExistingPermissions configures the file creation to try to use the
 // permissions from an already existing target file. If the target file doesn't
-// exist yet or is not a regular file the default permissions are used unless
+// exist yet or is not a regular file, the default permissions are used unless
 // overridden using WithPermissions or WithStaticPermissions.
 func WithExistingPermissions() Option {
 	return optionFunc(func(c *config) {
