@@ -21,6 +21,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"time"
 )
 
 // Default permissions for created files
@@ -145,6 +146,9 @@ type PendingFile struct {
 	replaceOnClose bool
 	root           *os.Root
 	tmpname        string
+	atime          time.Time
+	mtime          time.Time
+	setTimes       bool
 }
 
 // Cleanup is a no-op if CloseAtomicallyReplace succeeded, and otherwise closes
@@ -196,6 +200,17 @@ func (t *PendingFile) CloseAtomicallyReplace() error {
 	if err := t.File.Close(); err != nil {
 		return err
 	}
+	if t.setTimes {
+		if t.root != nil {
+			if err := t.root.Chtimes(t.tmpname, t.atime, t.mtime); err != nil {
+				return err
+			}
+		} else {
+			if err := os.Chtimes(t.Name(), t.atime, t.mtime); err != nil {
+				return err
+			}
+		}
+	}
 	if t.root != nil {
 		if err := t.root.Rename(t.tmpname, t.path); err != nil {
 			return err
@@ -240,6 +255,9 @@ type config struct {
 	chmod           *os.FileMode
 	renameOnClose   bool
 	root            *os.Root
+	atime           time.Time
+	mtime           time.Time
+	setTimes        bool
 }
 
 // NewPendingFile creates a temporary file destined to atomically creating or
@@ -315,6 +333,9 @@ func NewPendingFile(path string, opts ...Option) (*PendingFile, error) {
 		replaceOnClose: cfg.renameOnClose,
 		root:           cfg.root,
 		tmpname:        tmpname,
+		atime:          cfg.atime,
+		mtime:          cfg.mtime,
+		setTimes:       cfg.setTimes,
 	}, nil
 }
 

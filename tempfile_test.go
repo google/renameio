@@ -23,6 +23,7 @@ import (
 	"path/filepath"
 	"syscall"
 	"testing"
+	"time"
 )
 
 func withUmask(t *testing.T, mask os.FileMode) {
@@ -571,3 +572,186 @@ func TestTempFileNoCommitRoot(t *testing.T) {
 		t.Errorf("Read unexpected content %q from %q, want %q", string(got), pathExisting, want)
 	}
 }
+
+func TestPendingFileWithModificationTime(t *testing.T) {
+	mtime := time.Date(2023, time.May, 17, 12, 34, 56, 0, time.UTC)
+	dest := filepath.Join(t.TempDir(), "mtime.txt")
+
+	pf, err := NewPendingFile(dest, WithModificationTime(mtime))
+	if err != nil {
+		t.Fatalf("NewPendingFile() failed: %v", err)
+	}
+	defer pf.Cleanup()
+
+	if _, err := pf.Write([]byte("hello world")); err != nil {
+		t.Fatalf("Write() failed: %v", err)
+	}
+
+	if err := pf.CloseAtomicallyReplace(); err != nil {
+		t.Fatalf("CloseAtomicallyReplace() failed: %v", err)
+	}
+
+	fi, err := os.Stat(dest)
+	if err != nil {
+		t.Fatalf("Stat(%q) failed: %v", dest, err)
+	}
+
+	if !fi.ModTime().Equal(mtime) {
+		t.Errorf("ModTime() = %v, want %v", fi.ModTime(), mtime)
+	}
+
+	content, err := os.ReadFile(dest)
+	if err != nil {
+		t.Fatalf("ReadFile(%q) failed: %v", dest, err)
+	}
+	if string(content) != "hello world" {
+		t.Errorf("content = %q, want %q", string(content), "hello world")
+	}
+}
+
+func TestPendingFileWithTimes(t *testing.T) {
+	atime := time.Date(2022, time.January, 1, 8, 0, 0, 0, time.UTC)
+	mtime := time.Date(2023, time.May, 17, 12, 34, 56, 0, time.UTC)
+	dest := filepath.Join(t.TempDir(), "times.txt")
+
+	pf, err := NewPendingFile(dest, WithTimes(atime, mtime))
+	if err != nil {
+		t.Fatalf("NewPendingFile() failed: %v", err)
+	}
+	defer pf.Cleanup()
+
+	if _, err := pf.Write([]byte("times test")); err != nil {
+		t.Fatalf("Write() failed: %v", err)
+	}
+
+	if err := pf.CloseAtomicallyReplace(); err != nil {
+		t.Fatalf("CloseAtomicallyReplace() failed: %v", err)
+	}
+
+	fi, err := os.Stat(dest)
+	if err != nil {
+		t.Fatalf("Stat(%q) failed: %v", dest, err)
+	}
+
+	if !fi.ModTime().Equal(mtime) {
+		t.Errorf("ModTime() = %v, want %v", fi.ModTime(), mtime)
+	}
+}
+
+func TestPendingFileWithTimesRoot(t *testing.T) {
+	tmp := t.TempDir()
+	root, err := os.OpenRoot(tmp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer root.Close()
+
+	mtime := time.Date(2024, time.April, 1, 10, 20, 30, 0, time.UTC)
+	atime := time.Date(2024, time.April, 1, 9, 0, 0, 0, time.UTC)
+
+	for _, tc := range []struct {
+		name    string
+		path    string
+		options []Option
+		want    time.Time
+	}{
+		{
+			name:    "WithModificationTime",
+			path:    "root_mtime.txt",
+			options: []Option{WithRoot(root), WithModificationTime(mtime)},
+			want:    mtime,
+		},
+		{
+			name:    "WithTimes",
+			path:    "root_times.txt",
+			options: []Option{WithRoot(root), WithTimes(atime, mtime)},
+			want:    mtime,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			pf, err := NewPendingFile(tc.path, tc.options...)
+			if err != nil {
+				t.Fatalf("NewPendingFile(%q) failed: %v", tc.path, err)
+			}
+			defer pf.Cleanup()
+
+			if _, err := pf.Write([]byte("content")); err != nil {
+				t.Fatalf("Write() failed: %v", err)
+			}
+
+			if err := pf.CloseAtomicallyReplace(); err != nil {
+				t.Fatalf("CloseAtomicallyReplace() failed: %v", err)
+			}
+
+			fi, err := root.Stat(tc.path)
+			if err != nil {
+				t.Fatalf("Stat(%q) failed: %v", tc.path, err)
+			}
+
+			if !fi.ModTime().Equal(tc.want) {
+				t.Errorf("ModTime() = %v, want %v", fi.ModTime(), tc.want)
+			}
+		})
+	}
+}
+
+func TestPendingFileWithTimesReplaceOnClose(t *testing.T) {
+	mtime := time.Date(2023, time.December, 25, 6, 0, 0, 0, time.UTC)
+	dest := filepath.Join(t.TempDir(), "replace_on_close.txt")
+
+	pf, err := NewPendingFile(dest, WithReplaceOnClose(), WithModificationTime(mtime))
+	if err != nil {
+		t.Fatalf("NewPendingFile() failed: %v", err)
+	}
+	defer pf.Cleanup()
+
+	if _, err := pf.Write([]byte("replace on close")); err != nil {
+		t.Fatalf("Write() failed: %v", err)
+	}
+
+	if err := pf.Close(); err != nil {
+		t.Fatalf("Close() failed: %v", err)
+	}
+
+	fi, err := os.Stat(dest)
+	if err != nil {
+		t.Fatalf("Stat(%q) failed: %v", dest, err)
+	}
+
+	if !fi.ModTime().Equal(mtime) {
+		t.Errorf("ModTime() = %v, want %v", fi.ModTime(), mtime)
+	}
+}
+
+func TestWriteFileWithTimes(t *testing.T) {
+	mtime := time.Date(2022, time.July, 4, 15, 30, 0, 0, time.UTC)
+	dest := filepath.Join(t.TempDir(), "writefile_times.txt")
+
+	if err := WriteFile(dest, []byte("writefile data"), 0644, WithModificationTime(mtime)); err != nil {
+		t.Fatalf("WriteFile() failed: %v", err)
+	}
+
+	fi, err := os.Stat(dest)
+	if err != nil {
+		t.Fatalf("Stat(%q) failed: %v", dest, err)
+	}
+
+	if !fi.ModTime().Equal(mtime) {
+		t.Errorf("ModTime() = %v, want %v", fi.ModTime(), mtime)
+	}
+
+	newMtime := time.Date(2025, time.February, 14, 18, 0, 0, 0, time.UTC)
+	if err := WriteFile(dest, []byte("updated data"), 0644, WithModificationTime(newMtime)); err != nil {
+		t.Fatalf("WriteFile() overwrite failed: %v", err)
+	}
+
+	fi, err = os.Stat(dest)
+	if err != nil {
+		t.Fatalf("Stat(%q) failed: %v", dest, err)
+	}
+
+	if !fi.ModTime().Equal(newMtime) {
+		t.Errorf("ModTime() = %v, want %v", fi.ModTime(), newMtime)
+	}
+}
+

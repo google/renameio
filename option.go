@@ -16,7 +16,10 @@
 
 package renameio
 
-import "os"
+import (
+	"os"
+	"time"
+)
 
 // Option is the interface implemented by all configuration function return
 // values.
@@ -96,3 +99,27 @@ func WithRoot(root *os.Root) Option {
 		c.root = root
 	})
 }
+
+// WithTimes sets the access and modification times for the target file before
+// atomically replacing it.
+func WithTimes(atime, mtime time.Time) Option {
+	return optionFunc(func(cfg *config) {
+		cfg.atime = atime
+		cfg.mtime = mtime
+		cfg.setTimes = true
+	})
+}
+
+// WithModificationTime sets the modification time for the target file before
+// atomically replacing it. If access time is not explicitly set, it will also
+// be set to mtime.
+func WithModificationTime(mtime time.Time) Option {
+	return optionFunc(func(cfg *config) {
+		if !cfg.setTimes || cfg.atime.IsZero() {
+			cfg.atime = mtime
+		}
+		cfg.mtime = mtime
+		cfg.setTimes = true
+	})
+}
+
