@@ -17,6 +17,7 @@
 package renameio
 
 import (
+	"time"
 	"errors"
 	"fmt"
 	"os"
@@ -569,5 +570,66 @@ func TestTempFileNoCommitRoot(t *testing.T) {
 		t.Errorf("ReadFile(%q) failed: %v", pathExisting, err)
 	} else if want := "foobar"; string(got) != want {
 		t.Errorf("Read unexpected content %q from %q, want %q", string(got), pathExisting, want)
+	}
+}
+
+func TestWithModificationTime(t *testing.T) {
+	tmp, err := os.MkdirTemp("", "renameio-test-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmp)
+
+	dest := filepath.Join(tmp, "testfile")
+	customTime := time.Date(2020, 1, 2, 3, 4, 5, 0, time.UTC)
+
+	pf, err := NewPendingFile(dest, WithModificationTime(customTime), WithReplaceOnClose())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pf.WriteString("hello"); err != nil {
+		t.Fatal(err)
+	}
+	if err := pf.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	fi, err := os.Stat(dest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := fi.ModTime(); !got.Equal(customTime) {
+		t.Errorf("ModTime() = %v, want %v", got, customTime)
+	}
+}
+
+func TestWithTimes(t *testing.T) {
+	tmp, err := os.MkdirTemp("", "renameio-test-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmp)
+
+	dest := filepath.Join(tmp, "testfile")
+	atime := time.Date(2019, 5, 6, 7, 8, 9, 0, time.UTC)
+	mtime := time.Date(2020, 1, 2, 3, 4, 5, 0, time.UTC)
+
+	pf, err := NewPendingFile(dest, WithTimes(atime, mtime), WithReplaceOnClose())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pf.WriteString("hello"); err != nil {
+		t.Fatal(err)
+	}
+	if err := pf.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	fi, err := os.Stat(dest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := fi.ModTime(); !got.Equal(mtime) {
+		t.Errorf("ModTime() = %v, want %v", got, mtime)
 	}
 }

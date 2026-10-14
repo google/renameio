@@ -17,6 +17,7 @@
 package renameio
 
 import (
+	"time"
 	"math/rand/v2"
 	"os"
 	"path/filepath"
@@ -137,6 +138,7 @@ func tempDir(dir, dest string) string {
 // PendingFile is a pending temporary file, waiting to replace the destination
 // path in a call to CloseAtomicallyReplace.
 type PendingFile struct {
+	atime, mtime    *time.Time
 	*os.File
 
 	path           string
@@ -181,6 +183,28 @@ func (t *PendingFile) Cleanup() error {
 //
 // This method is not safe for concurrent use by multiple goroutines.
 func (t *PendingFile) CloseAtomicallyReplace() error {
+	if t.atime != nil || t.mtime != nil {
+		var atime, mtime time.Time
+		if t.atime != nil {
+			atime = *t.atime
+		} else {
+			if fi, err := t.Stat(); err == nil {
+				atime = fi.ModTime()
+			} else {
+				atime = time.Now()
+			}
+		}
+		if t.mtime != nil {
+			mtime = *t.mtime
+		} else {
+			if fi, err := t.Stat(); err == nil {
+				mtime = fi.ModTime()
+			} else {
+				mtime = time.Now()
+			}
+		}
+		_ = os.Chtimes(t.Name(), atime, mtime)
+	}
 	// Even on an ordered file system (e.g. ext4 with data=ordered) or file
 	// systems with write barriers, we cannot skip the fsync(2) call as per
 	// Theodore Ts'o (ext2/3/4 lead developer):
@@ -233,6 +257,7 @@ func TempFile(dir, path string) (*PendingFile, error) {
 }
 
 type config struct {
+	atime, mtime    *time.Time
 	dir, path       string
 	createPerm      os.FileMode
 	attemptPermCopy bool
@@ -311,6 +336,8 @@ func NewPendingFile(path string, opts ...Option) (*PendingFile, error) {
 
 	return &PendingFile{
 		File:           f,
+		atime:         cfg.atime,
+		mtime:         cfg.mtime,
 		path:           cfg.path,
 		replaceOnClose: cfg.renameOnClose,
 		root:           cfg.root,
