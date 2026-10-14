@@ -291,7 +291,11 @@ func NewPendingFile(path string, opts ...Option) (*PendingFile, error) {
 	var err error
 	var tmpname string
 	if cfg.root != nil {
-		tmpname, f, err = openTempFileRoot(cfg.root, "."+filepath.Base(cfg.path), cfg.createPerm)
+		tmpname := "." + filepath.Base(cfg.path)
+		if cfg.dir != "" {
+			tmpname = filepath.Join(cfg.dir, tmpname)
+		}
+		tmpname, f, err = openTempFileRoot(cfg.root, tmpname, cfg.createPerm)
 	} else {
 		f, err = openTempFile(tempDir(cfg.dir, cfg.path), "."+filepath.Base(cfg.path), cfg.createPerm)
 	}

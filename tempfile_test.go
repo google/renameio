@@ -571,3 +571,38 @@ func TestTempFileNoCommitRoot(t *testing.T) {
 		t.Errorf("Read unexpected content %q from %q, want %q", string(got), pathExisting, want)
 	}
 }
+
+func TestTempFileRootWithTempDir(t *testing.T) {
+	tmp := t.TempDir()
+	root, err := os.OpenRoot(tmp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer root.Close()
+
+	if err := root.Mkdir("sub", 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	targetPath := "target.txt"
+	pf, err := NewPendingFile(targetPath, WithRoot(root), WithTempDir("sub"))
+	if err != nil {
+		t.Fatalf("NewPendingFile() failed: %v", err)
+	}
+
+	if _, err := pf.WriteString("hello root sub"); err != nil {
+		t.Fatalf("WriteString() failed: %v", err)
+	}
+
+	if err := pf.Close(); err != nil {
+		t.Fatalf("Close() failed: %v", err)
+	}
+
+	got, err := root.ReadFile(targetPath)
+	if err != nil {
+		t.Fatalf("root.ReadFile() failed: %v", err)
+	}
+	if string(got) != "hello root sub" {
+		t.Errorf("got %q, want %q", string(got), "hello root sub")
+	}
+}
