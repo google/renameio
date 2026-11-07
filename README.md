@@ -56,6 +56,22 @@ If you were relying on the umask being ignored, add the
 `renameio.IgnoreUmask()` option to your `renameio.WriteFile` calls when
 upgrading to v2.
 
+## File permissions and metadata
+
+Replacing a file creates a new file, so its metadata is not automatically retained.
+`renameio.WriteFile` preserves the permission bits of an existing regular file;
+its `perm` argument supplies the permissions for a new file, subject to the umask.
+For example, `renameio.WriteFile(path, data, 0644)` retains an existing script's
+executable bits while creating a new file with permissions no broader than 0644.
+When using `renameio.NewPendingFile` directly, pass
+`renameio.WithExistingPermissions()` to request the same preservation behavior.
+
+Choose permissions appropriate for your application, such as 0644 for ordinary
+files or 0600 for private data. Preserving permissions reads the existing mode
+before replacing the file; it cannot atomically preserve a concurrent permission
+change. Other metadata, such as ownership, timestamps, extended attributes, and
+ACLs, is not copied from the replaced file.
+
 ## Windows support
 
 It is [not possible to reliably write files atomically on
